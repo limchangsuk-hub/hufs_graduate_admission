@@ -17,14 +17,7 @@ body{font-family:-apple-system,'Malgun Gothic',sans-serif;background:#F8FAFC;}
 </head>
 <body class="text-slate-800 min-h-screen">
 
-<!--
-=====================================================================
-  설정 방법 (README 파일도 함께 확인하세요)
-  1) 아래 firebaseConfig 를 본인 Firebase 프로젝트 값으로 교체
-  2) Firestore 보안 규칙을 README 안내대로 설정
-  3) Authentication > 이메일/비밀번호 방식 활성화 후 관리자 계정 1개 생성
-=====================================================================
--->
+<!-- Firebase 설정 -->
 <script>
 const firebaseConfig = {
   apiKey: "AIzaSyCZdJH_BOm10H3Ebm_VAGrZQct4NSGHIK0",
@@ -48,6 +41,7 @@ const db = firebase.firestore();
 
 <main class="max-w-3xl mx-auto px-4 py-8">
 
+<!-- 지원자 조회 화면 -->
 <section id="view-lookup" class="space-y-5">
 <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
 <p class="text-sm text-slate-500 mb-4">수험번호(8자리)와 이름을 입력하시면 본인의 면접 일시와 장소를 확인하실 수 있습니다.</p>
@@ -58,6 +52,8 @@ const db = firebase.firestore();
 <button onclick="lookup()" class="btn w-full mt-3 text-white" style="background:var(--navy)">면접 정보 조회</button>
 <p id="lk-error" class="hidden text-xs text-rose-600 mt-2">일치하는 정보가 없습니다. 수험번호와 이름을 다시 확인해 주세요.</p>
 </div>
+
+<!-- 조회 결과 카드리뷰 -->
 <div id="result-card" class="hidden bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
 <div class="p-5 border-b border-slate-200" style="background:#E8F1F5">
 <span id="r-campus" class="inline-block px-2.5 py-1 text-xs font-bold rounded-full bg-blue-100 text-blue-800 mb-1.5"></span>
@@ -67,14 +63,16 @@ const db = firebase.firestore();
 <div class="p-6 space-y-3 text-sm">
 <div class="grid grid-cols-2 gap-3">
 <div><span class="text-slate-500 block text-xs">수험번호</span><span id="r-examno" class="font-semibold"></span></div>
-<div><span class="text-slate-500 block text-xs">면접 일시</span><span id="r-time" class="font-semibold"></span></div>
-<div class="col-span-2"><span class="text-slate-500 block text-xs">면접 장소</span><span id="r-location" class="font-semibold"></span></div>
+<div><span class="text-slate-500 block text-xs">면접일</span><span id="r-date" class="font-semibold"></span></div>
+<div><span class="text-slate-500 block text-xs">면접시간</span><span id="r-time" class="font-semibold"></span></div>
+<div><span class="text-slate-500 block text-xs">면접 장소</span><span id="r-location" class="font-semibold"></span></div>
 </div>
 <div class="bg-slate-50 rounded-xl p-4 border border-slate-200 whitespace-pre-wrap text-slate-700 text-sm" id="r-notice"></div>
 </div>
 </div>
 </section>
 
+<!-- 관리자 로그인 화면 -->
 <section id="view-admin-login" class="hidden max-w-sm mx-auto bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-3">
 <button onclick="showLookup()" class="text-sm font-semibold text-slate-500 hover:text-slate-700">← 조회 화면으로</button>
 <h2 class="font-bold text-lg" style="color:var(--navy)">관리자 로그인</h2>
@@ -84,6 +82,7 @@ const db = firebase.firestore();
 <p id="login-error" class="hidden text-xs text-rose-600"></p>
 </section>
 
+<!-- 관리자 페이지 -->
 <section id="view-admin" class="hidden space-y-5">
 <div class="flex justify-between items-center">
 <button onclick="showLookup()" class="text-sm font-semibold text-slate-500 hover:text-slate-700">← 지원자 조회 화면 보기</button>
@@ -91,12 +90,12 @@ const db = firebase.firestore();
 </div>
 <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
 <h2 class="font-bold text-lg" style="color:var(--navy)">엑셀 업로드</h2>
-<p class="text-xs text-slate-500">열 이름: 이름, 수험번호, 지원학과, 전화번호, 이메일주소, 면접장소, 면접시간, 캠퍼스 (순서 무관, 첫 행 헤더)</p>
+<p class="text-xs text-slate-500">열 이름: 이름, 수험번호, 지원학과, 전화번호, 이메일주소, 면접장소, 면접일, 면접시간, 캠퍼스 (순서 무관, 첫 행 헤더)</p>
 <input type="file" id="xlsx-input" accept=".xlsx,.xls" class="text-sm">
 <div id="preview-wrap" class="hidden">
 <p class="text-sm font-semibold mb-2">미리보기 (<span id="preview-count"></span>건)</p>
 <div class="overflow-x-auto max-h-64 border rounded-xl"><table class="w-full text-xs"><thead class="bg-slate-100"><tr>
-<th class="p-2 text-left">캠퍼스</th><th class="p-2 text-left">이름</th><th class="p-2 text-left">수험번호</th><th class="p-2 text-left">지원학과</th><th class="p-2 text-left">면접시간</th><th class="p-2 text-left">면접장소</th>
+<th class="p-2 text-left">캠퍼스</th><th class="p-2 text-left">이름</th><th class="p-2 text-left">수험번호</th><th class="p-2 text-left">지원학과</th><th class="p-2 text-left">면접일</th><th class="p-2 text-left">면접시간</th><th class="p-2 text-left">면접장소</th>
 </tr></thead><tbody id="preview-body"></tbody></table></div>
 </div>
 <div>
@@ -109,7 +108,7 @@ const db = firebase.firestore();
 <div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
 <h3 class="font-bold mb-3">현재 등록된 명단 (<span id="current-count">0</span>명)</h3>
 <div class="overflow-x-auto max-h-96 border rounded-xl"><table class="w-full text-xs"><thead class="bg-slate-100"><tr>
-<th class="p-2 text-left">캠퍼스</th><th class="p-2 text-left">이름</th><th class="p-2 text-left">수험번호</th><th class="p-2 text-left">지원학과</th><th class="p-2 text-left">면접시간</th><th class="p-2 text-left">면접장소</th><th class="p-2 text-left">연락처</th>
+<th class="p-2 text-left">캠퍼스</th><th class="p-2 text-left">이름</th><th class="p-2 text-left">수험번호</th><th class="p-2 text-left">지원학과</th><th class="p-2 text-left">면접일</th><th class="p-2 text-left">면접시간</th><th class="p-2 text-left">면접장소</th><th class="p-2 text-left">연락처</th>
 </tr></thead><tbody id="current-body"></tbody></table></div>
 </div>
 </section>
@@ -171,7 +170,11 @@ async function lookup(){
     document.getElementById('r-name').textContent = s.name+' 님';
     document.getElementById('r-dept').textContent = s.dept;
     document.getElementById('r-examno').textContent = no;
-    document.getElementById('r-time').textContent = s.time;
+    
+    // 면접일과 면접시간을 각각 출력
+    document.getElementById('r-date').textContent = s.date || '-';
+    document.getElementById('r-time').textContent = s.time || '-';
+    
     document.getElementById('r-location').textContent = s.location;
     document.getElementById('r-notice').textContent = noticeSnap.exists ? (noticeSnap.data().text||'') : '';
     document.getElementById('result-card').classList.remove('hidden');
@@ -181,7 +184,19 @@ async function lookup(){
   }
 }
 
-const COLS = {name:['이름'], examno:['수험번호'], dept:['지원학과'], phone:['전화번호'], email:['이메일주소'], location:['면접장소'], time:['면접시간'], campus:['캠퍼스']};
+// 엑셀 칼럼 매핑 객체 (date: '면접일' 추가)
+const COLS = {
+  name:['이름'], 
+  examno:['수험번호'], 
+  dept:['지원학과'], 
+  phone:['전화번호'], 
+  email:['이메일주소'], 
+  location:['면접장소'], 
+  date:['면접일', '면접일자'], 
+  time:['면접시간'], 
+  campus:['캠퍼스']
+};
+
 function findCol(headers, keys){ for(const k of keys){const i=headers.indexOf(k); if(i>=0) return i;} return -1; }
 
 document.getElementById('xlsx-input').addEventListener('change', e=>{
@@ -197,17 +212,19 @@ document.getElementById('xlsx-input').addEventListener('change', e=>{
       let examno = String(r[idx.examno]??'').trim();
       if(/^\d+$/.test(examno) && examno.length<8) examno = examno.padStart(8,'0');
       return {
-        name: String(r[idx.name]??'').trim(), examno,
+        name: String(r[idx.name]??'').trim(), 
+        examno,
         dept: String(r[idx.dept]??'').trim(),
         phone: String(r[idx.phone]??'').trim(),
         email: String(r[idx.email]??'').trim(),
         location: String(r[idx.location]??'').trim(),
+        date: String(r[idx.date]??'').trim(),
         time: String(r[idx.time]??'').trim(),
         campus: String(r[idx.campus]??'').trim()
       };
     });
     document.getElementById('preview-count').textContent = parsedRows.length;
-    document.getElementById('preview-body').innerHTML = parsedRows.map(s=>`<tr class="border-t"><td class="p-2">${s.campus}</td><td class="p-2">${s.name}</td><td class="p-2">${s.examno}</td><td class="p-2">${s.dept}</td><td class="p-2">${s.time}</td><td class="p-2">${s.location}</td></tr>`).join('');
+    document.getElementById('preview-body').innerHTML = parsedRows.map(s=>`<tr class="border-t"><td class="p-2">${s.campus}</td><td class="p-2">${s.name}</td><td class="p-2">${s.examno}</td><td class="p-2">${s.dept}</td><td class="p-2">${s.date}</td><td class="p-2">${s.time}</td><td class="p-2">${s.location}</td></tr>`).join('');
     document.getElementById('preview-wrap').classList.remove('hidden');
   };
   reader.readAsArrayBuffer(file);
@@ -223,9 +240,10 @@ async function loadCurrentList(){
     renderCurrent(list);
   }catch(err){ toast('명단 불러오기 실패: '+err.message); }
 }
+
 function renderCurrent(list){
   document.getElementById('current-count').textContent = list.length;
-  document.getElementById('current-body').innerHTML = list.map(s=>`<tr class="border-t"><td class="p-2">${s.campus||''}</td><td class="p-2">${s.name}</td><td class="p-2">${s.examno}</td><td class="p-2">${s.dept}</td><td class="p-2">${s.time}</td><td class="p-2">${s.location}</td><td class="p-2">${s.phone}</td></tr>`).join('') || '<tr><td class="p-3 text-slate-400" colspan="7">등록된 명단이 없습니다.</td></tr>';
+  document.getElementById('current-body').innerHTML = list.map(s=>`<tr class="border-t"><td class="p-2">${s.campus||''}</td><td class="p-2">${s.name}</td><td class="p-2">${s.examno}</td><td class="p-2">${s.dept}</td><td class="p-2">${s.date||''}</td><td class="p-2">${s.time||''}</td><td class="p-2">${s.location}</td><td class="p-2">${s.phone}</td></tr>`).join('') || '<tr><td class="p-3 text-slate-400" colspan="8">등록된 명단이 없습니다.</td></tr>';
 }
 
 async function publishAll(){
@@ -241,7 +259,14 @@ async function publishAll(){
         const batch = db.batch();
         chunk.forEach(s=>{
           batch.set(db.collection('applicants').doc(s.examno), {
-            name:s.name, dept:s.dept, phone:s.phone, email:s.email, location:s.location, time:s.time, campus:s.campus
+            name:s.name, 
+            dept:s.dept, 
+            phone:s.phone, 
+            email:s.email, 
+            location:s.location, 
+            date:s.date, 
+            time:s.time, 
+            campus:s.campus
           });
         });
         await batch.commit();
