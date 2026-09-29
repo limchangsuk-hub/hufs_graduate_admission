@@ -200,27 +200,48 @@ const COLS = {
 function findCol(headers, keys){ for(const k of keys){const i=headers.indexOf(k); if(i>=0) return i;} return -1; }
 
 document.getElementById('xlsx-input').addEventListener('change', e=>{
+  // 날짜 포맷 변환 함수 추가
+function formatDate(val) {
+  if (!val) return '';
+  // 이미 "년", "월", "일"이 포함되어 있으면 그대로 반환
+  if (typeof val === 'string' && (val.includes('년') || val.includes('.'))) {
+    const numbers = val.match(/\d+/g);
+    if (numbers && numbers.length >= 3) {
+      let y = numbers[0];
+      if (y.length === 2) y = '20' + y;
+      return `${y}년 ${parseInt(numbers[1], 10)}월 ${parseInt(numbers[2], 10)}일`;
+    }
+  }
+  // Date 객체이거나 Date 변환 가능한 형태 처리
+  const d = new Date(val);
+  if (!isNaN(d.getTime())) {
+    return `${d.getFullYear()}년 ${d.getMonth() + 1}월 ${d.getDate()}일`;
+  }
+  return String(val).trim();
+}
   const file = e.target.files[0]; if(!file) return;
   const reader = new FileReader();
-  reader.onload = ev=>{
-    const wb = XLSX.read(new Uint8Array(ev.target.result), {type:'array'});
+reader.onload = ev => {
+    // cellDates: true 옵션 추가 (엑셀 날짜를 JS Date 객체로 읽음)
+    const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array', cellDates: true });
     const ws = wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:''});
-    const headers = rows[0].map(h=>String(h).trim());
-    const idx = {}; for(const k in COLS) idx[k]=findCol(headers, COLS[k]);
-    parsedRows = rows.slice(1).filter(r=>r.some(c=>String(c).trim()!=='')).map(r=>{
-      let examno = String(r[idx.examno]??'').trim();
-      if(/^\d+$/.test(examno) && examno.length<8) examno = examno.padStart(8,'0');
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' });
+    const headers = rows[0].map(h => String(h).trim());
+    const idx = {}; for (const k in COLS) idx[k] = findCol(headers, COLS[k]);
+
+    parsedRows = rows.slice(1).filter(r => r.some(c => String(c).trim() !== '')).map(r => {
+      let examno = String(r[idx.examno] ?? '').trim();
+      if (/^\d+$/.test(examno) && examno.length < 8) examno = examno.padStart(8, '0');
       return {
-        name: String(r[idx.name]??'').trim(), 
+        name: String(r[idx.name] ?? '').trim(),
         examno,
-        dept: String(r[idx.dept]??'').trim(),
-        phone: String(r[idx.phone]??'').trim(),
-        email: String(r[idx.email]??'').trim(),
-        location: String(r[idx.location]??'').trim(),
-        date: String(r[idx.date]??'').trim(),
-        time: String(r[idx.time]??'').trim(),
-        campus: String(r[idx.campus]??'').trim()
+        dept: String(r[idx.dept] ?? '').trim(),
+        phone: String(r[idx.phone] ?? '').trim(),
+        email: String(r[idx.email] ?? '').trim(),
+        location: String(r[idx.location] ?? '').trim(),
+        date: formatDate(r[idx.date]), // ★ formatDate 함수 적용
+        time: String(r[idx.time] ?? '').trim(),
+        campus: String(r[idx.campus] ?? '').trim()
       };
     });
     document.getElementById('preview-count').textContent = parsedRows.length;
