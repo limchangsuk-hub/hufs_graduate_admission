@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>한국외국어대학교 일반대학원 특별전형 면접고사 안내</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<style>
+:root{--navy:#002D56;--blue:#00529B;}
+body{font-family:-apple-system,'Malgun Gothic',sans-serif;background:#F8FAFC;}
+.btn{padding:.6rem 1.1rem;border-radius:.75rem;font-weight:700;font-size:.875rem;}
+</style>
+</head>
+<body class="text-slate-800 min-h-screen">
+
+<!--
+=====================================================================
+  설정 방법 (README 파일도 함께 확인하세요)
+  1) 아래 firebaseConfig 를 본인 Firebase 프로젝트 값으로 교체
+  2) Firestore 보안 규칙을 README 안내대로 설정
+  3) Authentication > 이메일/비밀번호 방식 활성화 후 관리자 계정 1개 생성
+=====================================================================
+-->
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCZdJH_BOm10H3Ebm_VAGrZQct4NSGHIK0",
+  authDomain: "hufs-graduate-admission.firebaseapp.com",
+  projectId: "hufs-graduate-admission",
+  storageBucket: "hufs-graduate-admission.firebasestorage.app",
+  messagingSenderId: "609642739405",
+  appId: "1:609642739405:web:b7a556522ef4a1a45c1b84"
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+</script>
+
+<header class="text-white shadow-md sticky top-0 z-50" style="background:var(--navy)">
+<div class="max-w-3xl mx-auto px-4 py-3 flex justify-between items-center">
+<h1 class="text-base md:text-lg font-bold cursor-pointer" onclick="showLookup()">일반대학원 특별전형 면접고사 안내</h1>
+<button id="admin-nav-btn" onclick="onAdminNavClick()" class="text-xs bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg">관리자</button>
+</div>
+</header>
+
+<main class="max-w-3xl mx-auto px-4 py-8">
+
+<section id="view-lookup" class="space-y-5">
+<div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+<p class="text-sm text-slate-500 mb-4">수험번호(8자리)와 이름을 입력하시면 본인의 면접 일시와 장소를 확인하실 수 있습니다.</p>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+<input id="lk-examno" maxlength="8" inputmode="numeric" placeholder="수험번호 8자리" onkeydown="if(event.key==='Enter') lookup()" class="px-4 py-3 rounded-xl border border-slate-300">
+<input id="lk-name" placeholder="이름" onkeydown="if(event.key==='Enter') lookup()" class="px-4 py-3 rounded-xl border border-slate-300">
+</div>
+<button onclick="lookup()" class="btn w-full mt-3 text-white" style="background:var(--navy)">면접 정보 조회</button>
+<p id="lk-error" class="hidden text-xs text-rose-600 mt-2">일치하는 정보가 없습니다. 수험번호와 이름을 다시 확인해 주세요.</p>
+</div>
+<div id="result-card" class="hidden bg-white rounded-2xl shadow-md border border-slate-200 overflow-hidden">
+<div class="p-5 border-b border-slate-200" style="background:#E8F1F5">
+<span id="r-campus" class="inline-block px-2.5 py-1 text-xs font-bold rounded-full bg-blue-100 text-blue-800 mb-1.5"></span>
+<h2 class="text-lg font-bold" id="r-name" style="color:var(--navy)"></h2>
+<p class="text-sm text-slate-600" id="r-dept"></p>
+</div>
+<div class="p-6 space-y-3 text-sm">
+<div class="grid grid-cols-2 gap-3">
+<div><span class="text-slate-500 block text-xs">수험번호</span><span id="r-examno" class="font-semibold"></span></div>
+<div><span class="text-slate-500 block text-xs">면접 일시</span><span id="r-time" class="font-semibold"></span></div>
+<div class="col-span-2"><span class="text-slate-500 block text-xs">면접 장소</span><span id="r-location" class="font-semibold"></span></div>
+</div>
+<div class="bg-slate-50 rounded-xl p-4 border border-slate-200 whitespace-pre-wrap text-slate-700 text-sm" id="r-notice"></div>
+</div>
+</div>
+</section>
+
+<section id="view-admin-login" class="hidden max-w-sm mx-auto bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-3">
+<button onclick="showLookup()" class="text-sm font-semibold text-slate-500 hover:text-slate-700">← 조회 화면으로</button>
+<h2 class="font-bold text-lg" style="color:var(--navy)">관리자 로그인</h2>
+<input type="email" id="admin-email" placeholder="이메일" class="w-full px-4 py-3 rounded-xl border border-slate-300">
+<input type="password" id="admin-pw" placeholder="비밀번호" class="w-full px-4 py-3 rounded-xl border border-slate-300">
+<button onclick="doLogin()" class="btn w-full text-white" style="background:var(--navy)">로그인</button>
+<p id="login-error" class="hidden text-xs text-rose-600"></p>
+</section>
+
+<section id="view-admin" class="hidden space-y-5">
+<div class="flex justify-between items-center">
+<button onclick="showLookup()" class="text-sm font-semibold text-slate-500 hover:text-slate-700">← 지원자 조회 화면 보기</button>
+<button onclick="auth.signOut()" class="text-xs text-slate-500 hover:text-rose-600">로그아웃</button>
+</div>
+<div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200 space-y-4">
+<h2 class="font-bold text-lg" style="color:var(--navy)">엑셀 업로드</h2>
+<p class="text-xs text-slate-500">열 이름: 이름, 수험번호, 지원학과, 전화번호, 이메일주소, 면접장소, 면접시간, 캠퍼스 (순서 무관, 첫 행 헤더)</p>
+<input type="file" id="xlsx-input" accept=".xlsx,.xls" class="text-sm">
+<div id="preview-wrap" class="hidden">
+<p class="text-sm font-semibold mb-2">미리보기 (<span id="preview-count"></span>건)</p>
+<div class="overflow-x-auto max-h-64 border rounded-xl"><table class="w-full text-xs"><thead class="bg-slate-100"><tr>
+<th class="p-2 text-left">캠퍼스</th><th class="p-2 text-left">이름</th><th class="p-2 text-left">수험번호</th><th class="p-2 text-left">지원학과</th><th class="p-2 text-left">면접시간</th><th class="p-2 text-left">면접장소</th>
+</tr></thead><tbody id="preview-body"></tbody></table></div>
+</div>
+<div>
+<label class="block text-sm font-bold mb-1">공통 안내문</label>
+<textarea id="notice-input" rows="4" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"></textarea>
+</div>
+<button onclick="publishAll()" class="btn text-white" style="background:var(--navy)">업로드한 데이터 저장(모두에게 반영)</button>
+<p id="admin-msg" class="text-xs"></p>
+</div>
+<div class="bg-white rounded-2xl p-6 shadow-sm border border-slate-200">
+<h3 class="font-bold mb-3">현재 등록된 명단 (<span id="current-count">0</span>명)</h3>
+<div class="overflow-x-auto max-h-96 border rounded-xl"><table class="w-full text-xs"><thead class="bg-slate-100"><tr>
+<th class="p-2 text-left">캠퍼스</th><th class="p-2 text-left">이름</th><th class="p-2 text-left">수험번호</th><th class="p-2 text-left">지원학과</th><th class="p-2 text-left">면접시간</th><th class="p-2 text-left">면접장소</th><th class="p-2 text-left">연락처</th>
+</tr></thead><tbody id="current-body"></tbody></table></div>
+</div>
+</section>
+</main>
+
+<div id="toast" class="fixed bottom-5 right-5 translate-y-20 opacity-0 transition-all bg-slate-900 text-white px-5 py-3 rounded-xl shadow-2xl z-50 text-sm"></div>
+
+<script>
+let parsedRows = null;
+
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.remove('translate-y-20','opacity-0');setTimeout(()=>t.classList.add('translate-y-20','opacity-0'),3000);}
+
+function showLookup(){
+  document.getElementById('view-admin').classList.add('hidden');
+  document.getElementById('view-admin-login').classList.add('hidden');
+  document.getElementById('view-lookup').classList.remove('hidden');
+}
+function onAdminNavClick(){
+  if(auth.currentUser){
+    document.getElementById('view-lookup').classList.add('hidden');
+    document.getElementById('view-admin').classList.remove('hidden');
+    loadCurrentList();
+  } else {
+    document.getElementById('view-lookup').classList.add('hidden');
+    document.getElementById('view-admin-login').classList.remove('hidden');
+  }
+}
+function doLogin(){
+  const email = document.getElementById('admin-email').value.trim();
+  const pw = document.getElementById('admin-pw').value;
+  auth.signInWithEmailAndPassword(email, pw).then(()=>{
+    document.getElementById('login-error').classList.add('hidden');
+    document.getElementById('view-admin-login').classList.add('hidden');
+    document.getElementById('view-admin').classList.remove('hidden');
+    loadCurrentList();
+  }).catch(err=>{
+    const e = document.getElementById('login-error');
+    e.textContent = '로그인 실패: 이메일 또는 비밀번호를 확인해 주세요.';
+    e.classList.remove('hidden');
+  });
+}
+
+async function lookup(){
+  const no = document.getElementById('lk-examno').value.trim();
+  const name = document.getElementById('lk-name').value.trim();
+  document.getElementById('lk-error').classList.add('hidden');
+  document.getElementById('result-card').classList.add('hidden');
+  if(!no || !name) return;
+  try{
+    const snap = await db.collection('applicants').doc(no).get();
+    if(!snap.exists || snap.data().name !== name){
+      document.getElementById('lk-error').classList.remove('hidden');
+      return;
+    }
+    const s = snap.data();
+    const noticeSnap = await db.collection('meta').doc('notice').get();
+    document.getElementById('r-campus').textContent = s.campus ? s.campus+'캠퍼스' : '';
+    document.getElementById('r-campus').classList.toggle('hidden', !s.campus);
+    document.getElementById('r-name').textContent = s.name+' 님';
+    document.getElementById('r-dept').textContent = s.dept;
+    document.getElementById('r-examno').textContent = no;
+    document.getElementById('r-time').textContent = s.time;
+    document.getElementById('r-location').textContent = s.location;
+    document.getElementById('r-notice').textContent = noticeSnap.exists ? (noticeSnap.data().text||'') : '';
+    document.getElementById('result-card').classList.remove('hidden');
+  }catch(err){
+    document.getElementById('lk-error').classList.remove('hidden');
+    document.getElementById('lk-error').textContent = '조회 중 오류가 발생했습니다: '+err.message;
+  }
+}
+
+const COLS = {name:['이름'], examno:['수험번호'], dept:['지원학과'], phone:['전화번호'], email:['이메일주소'], location:['면접장소'], time:['면접시간'], campus:['캠퍼스']};
+function findCol(headers, keys){ for(const k of keys){const i=headers.indexOf(k); if(i>=0) return i;} return -1; }
+
+document.getElementById('xlsx-input').addEventListener('change', e=>{
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = ev=>{
+    const wb = XLSX.read(new Uint8Array(ev.target.result), {type:'array'});
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(ws, {header:1, raw:false, defval:''});
+    const headers = rows[0].map(h=>String(h).trim());
+    const idx = {}; for(const k in COLS) idx[k]=findCol(headers, COLS[k]);
+    parsedRows = rows.slice(1).filter(r=>r.some(c=>String(c).trim()!=='')).map(r=>{
+      let examno = String(r[idx.examno]??'').trim();
+      if(/^\d+$/.test(examno) && examno.length<8) examno = examno.padStart(8,'0');
+      return {
+        name: String(r[idx.name]??'').trim(), examno,
+        dept: String(r[idx.dept]??'').trim(),
+        phone: String(r[idx.phone]??'').trim(),
+        email: String(r[idx.email]??'').trim(),
+        location: String(r[idx.location]??'').trim(),
+        time: String(r[idx.time]??'').trim(),
+        campus: String(r[idx.campus]??'').trim()
+      };
+    });
+    document.getElementById('preview-count').textContent = parsedRows.length;
+    document.getElementById('preview-body').innerHTML = parsedRows.map(s=>`<tr class="border-t"><td class="p-2">${s.campus}</td><td class="p-2">${s.name}</td><td class="p-2">${s.examno}</td><td class="p-2">${s.dept}</td><td class="p-2">${s.time}</td><td class="p-2">${s.location}</td></tr>`).join('');
+    document.getElementById('preview-wrap').classList.remove('hidden');
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+async function loadCurrentList(){
+  document.getElementById('notice-input').value = '';
+  try{
+    const noticeSnap = await db.collection('meta').doc('notice').get();
+    document.getElementById('notice-input').value = noticeSnap.exists ? (noticeSnap.data().text||'') : '';
+    const qs = await db.collection('applicants').get();
+    const list = []; qs.forEach(d=>list.push({examno:d.id, ...d.data()}));
+    renderCurrent(list);
+  }catch(err){ toast('명단 불러오기 실패: '+err.message); }
+}
+function renderCurrent(list){
+  document.getElementById('current-count').textContent = list.length;
+  document.getElementById('current-body').innerHTML = list.map(s=>`<tr class="border-t"><td class="p-2">${s.campus||''}</td><td class="p-2">${s.name}</td><td class="p-2">${s.examno}</td><td class="p-2">${s.dept}</td><td class="p-2">${s.time}</td><td class="p-2">${s.location}</td><td class="p-2">${s.phone}</td></tr>`).join('') || '<tr><td class="p-3 text-slate-400" colspan="7">등록된 명단이 없습니다.</td></tr>';
+}
+
+async function publishAll(){
+  const msg = document.getElementById('admin-msg');
+  if(!auth.currentUser){ msg.textContent='로그인이 필요합니다.'; msg.className='text-xs text-rose-600'; return; }
+  const notice = document.getElementById('notice-input').value;
+  try{
+    await db.collection('meta').doc('notice').set({text: notice});
+    if(parsedRows && parsedRows.length){
+      // Firestore 배치는 최대 500건: 400건씩 나눠서 처리
+      for(let i=0;i<parsedRows.length;i+=400){
+        const chunk = parsedRows.slice(i,i+400);
+        const batch = db.batch();
+        chunk.forEach(s=>{
+          batch.set(db.collection('applicants').doc(s.examno), {
+            name:s.name, dept:s.dept, phone:s.phone, email:s.email, location:s.location, time:s.time, campus:s.campus
+          });
+        });
+        await batch.commit();
+      }
+    }
+    msg.textContent = '저장되었습니다. 지원자들이 조회하면 최신 정보로 반영됩니다.';
+    msg.className = 'text-xs text-emerald-600';
+    parsedRows = null;
+    document.getElementById('preview-wrap').classList.add('hidden');
+    loadCurrentList();
+    toast('저장 완료');
+  }catch(err){ msg.textContent='저장 실패: '+err.message; msg.className='text-xs text-rose-600'; }
+}
+</script>
+</body>
+</html>
